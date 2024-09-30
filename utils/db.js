@@ -8,14 +8,15 @@ class DBClient {
     const DB = process.env.DB_DATABASE || 'files_manager';
     this.status = false;
     this.client = new MongoClient(url, { useUnifiedTopology: true });
-    this.client.connect((err, client) => {
+    this.client.connect((err) => {
       if (!err) {
-        this.db = client.db(DB);
         this.status = true;
       } else {
         this.status = false;
       }
     });
+    this.userCollection = this.client.db(DB).collection('users');
+    this.fileCollection = this.client.db(DB).collection('files');
   }
 
   isAlive() {
