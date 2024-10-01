@@ -79,13 +79,20 @@ class FilesController {
     }
     if (type === 'folder') {
       const newFolder = await DBClient.fileCollection.insertOne({
-        userId: new ObjectId(parentId),
+        userId: user._id,
         name,
         type,
         isPublic,
         parentId,
       });
-      return resp.status(201).json(newFolder.ops[0]);
+      return resp.status(201).json({
+        id: newFolder.ops[0]._id,
+        userId: newFolder.ops[0].userId,
+        name: newFolder.ops[0].name,
+        type: newFolder.ops[0].type,
+        isPublic: newFolder.ops[0].isPublic,
+        parentId: newFolder.ops[0].parentId,
+      });
     }
     let PATH = process.env.FOLDER_PATH;
     if (!PATH || PATH === '') {
@@ -99,14 +106,21 @@ class FilesController {
     const fileContent = decode64(data);
     fs.writeFileSync(localPath, fileContent);
     const newFile = await DBClient.fileCollection.insertOne({
-      userId: new ObjectId(parentId),
+      userId: user._id,
       name,
       type,
       isPublic,
       parentId,
       localPath,
     });
-    return resp.status(201).json(newFile.ops[0]);
+    return resp.status(201).json({
+      id: newFile.ops[0]._id,
+      userId: newFile.ops[0].userId,
+      name: newFile.ops[0].name,
+      type: newFile.ops[0].type,
+      isPublic: newFile.ops[0].isPublic,
+      parentId: newFile.ops[0].parentId,
+    });
   }
 }
 
