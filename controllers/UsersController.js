@@ -40,25 +40,25 @@ class UsersController {
   static async getMe(req, resp) {
     const tkn = req.header('X-Token');
     if (!tkn) {
-      resp.status(401).json({ error: 'Unauthorized1' });
+      return resp.status(401).json({ error: 'Unauthorized' });
     }
     const key = `auth_${tkn}`;
     const userId = await redisClient.get(key);
     if (!userId) {
-      resp.status(401).json({ error: 'Unauthorized2' });
+      return resp.status(401).json({ error: 'Unauthorized' });
     }
     let objectId;
     try {
       objectId = new ObjectId(userId);
     } catch (error) {
-      return resp.status(401).json({ error: 'Unauthorized3' });
+      return resp.status(401).json({ error: 'Unauthorized' });
     }
     const user = await DBClient.userCollection.findOne(
       { _id: objectId },
       { projection: { email: 1 } },
     );
     if (!user) {
-      resp.status(401).json({ error: 'Unauthorized4' });
+      return resp.status(401).json({ error: 'Unauthorized' });
     }
     return resp.status(200).json({
       id: userId,
