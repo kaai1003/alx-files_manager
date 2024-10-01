@@ -122,6 +122,63 @@ class FilesController {
       parentId: newFile.ops[0].parentId,
     });
   }
+
+  static async getShow(req, resp) {
+    const tkn = req.header('X-Token');
+    const user = await getUser(tkn);
+    if (!user) {
+      return resp.status(401).json({ error: 'Unauthorized' });
+    }
+    const fileId = req.params.id;
+    const file = await DBClient.fileCollection.findOne({
+      _id: new ObjectId(fileId),
+    });
+    if (!file || file.userId.toString() !== user._id.toString()) {
+      return resp.status(404).json({ error: 'Not found' });
+    }
+    return resp.status(201).json({
+      id: file.ops[0]._id,
+      userId: file.ops[0].userId,
+      name: file.ops[0].name,
+      type: file.ops[0].type,
+      isPublic: file.ops[0].isPublic,
+      parentId: file.ops[0].parentId,
+    });
+  }
+
+  static async getIndex(req, resp) {
+    const tkn = req.header('X-Token');
+    const user = await getUser(tkn);
+    if (!user) {
+      return resp.status(401).json({ error: 'Unauthorized' });
+    }
+    const parentId = req.query.parentId || 0;
+    const page = req.query.page || 0;
+    const size = 20;
+    const skip = page * size;
+
+    const allFiles = await DBClient.fileCollection
+      .find({
+        userId: new ObjectId(user._id),
+        parentId: new ObjectId(parentId),
+      })
+      .skip(skip)
+      .limit(size)
+      .toArray();
+    console.log(allFiles);
+    const fileArray = [];
+    for (const file of allFiles) {
+      fileArray.push({
+        id: file.ops[0]._id,
+        userId: file.ops[0].userId,
+        name: file.ops[0].name,
+        type: file.ops[0].type,
+        isPublic: file.ops[0].isPublic,
+        parentId: file.ops[0].parentId,
+      });
+    }
+    return resp.status(200).json(fileArray);
+  }
 }
 
 module.exports = FilesController;
