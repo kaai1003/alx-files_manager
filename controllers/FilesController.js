@@ -25,17 +25,17 @@ async function getUser(token) {
   return user;
 }
 
-async function getFile(parentId) {
+async function getFile(id) {
   let objectId;
   try {
-    objectId = new ObjectId(parentId);
+    objectId = new ObjectId(id);
   } catch (error) {
     return null;
   }
-  const parentFile = await DBClient.fileCollection.findOne(
+  const file = await DBClient.fileCollection.findOne(
     { _id: objectId },
   );
-  return parentFile;
+  return file;
 }
 
 const decode64 = (data) => {
@@ -193,6 +193,58 @@ class FilesController {
       });
     }
     return resp.status(200).json(fileArray);
+  }
+
+  static async putPublish(req, resp) {
+    const tkn = req.header('X-Token');
+    const user = await getUser(tkn);
+    if (!user) {
+      return resp.status(401).json({ error: 'Unauthorized' });
+    }
+    const fileId = req.params.id;
+    const file = await getFile(fileId);
+    if (!file || file.userId.toString() !== user._id.toString()) {
+      return resp.status(404).json({ error: 'Not found' });
+    }
+    await DBClient.fileCollection.updateOne(
+      { _id: file._id },
+      { $set: { isPublic: true } },
+    );
+    const updatedFile = await getFile(fileId);
+    return resp.status(200).json({
+      id: updatedFile._id,
+      userId: updatedFile.userId,
+      name: updatedFile.name,
+      type: updatedFile.type,
+      isPublic: updatedFile.isPublic,
+      parentId: updatedFile.parentId,
+    });
+  }
+
+  static async putUnpublish(req, resp) {
+    const tkn = req.header('X-Token');
+    const user = await getUser(tkn);
+    if (!user) {
+      return resp.status(401).json({ error: 'Unauthorized' });
+    }
+    const fileId = req.params.id;
+    const file = await getFile(fileId);
+    if (!file || file.userId.toString() !== user._id.toString()) {
+      return resp.status(404).json({ error: 'Not found' });
+    }
+    await DBClient.fileCollection.updateOne(
+      { _id: file._id },
+      { $set: { isPublic: false } },
+    );
+    const updatedFile = await getFile(fileId);
+    return resp.status(200).json({
+      id: updatedFile._id,
+      userId: updatedFile.userId,
+      name: updatedFile.name,
+      type: updatedFile.type,
+      isPublic: updatedFile.isPublic,
+      parentId: updatedFile.parentId,
+    });
   }
 }
 
