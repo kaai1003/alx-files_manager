@@ -2,10 +2,13 @@ import { ObjectId } from 'mongodb';
 import path from 'path';
 import fs from 'fs';
 import mime from 'mime-types';
+import Queue from 'bull';
 import redisClient from '../utils/redis';
 import DBClient from '../utils/db';
 
 const { v4: uuidv4 } = require('uuid');
+
+const fileQueue = new Queue('fileQueue');
 
 async function getUser(token) {
   const key = `auth_${token}`;
@@ -114,6 +117,12 @@ class FilesController {
       parentId,
       localPath,
     });
+    if (type === 'image') {
+      await fileQueue.add({
+        userId: user._id.toString(),
+        fileId: newFile.insertedId.toString(),
+      });
+    }
     return resp.status(201).json({
       id: newFile.insertedId,
       userId: user._id,
@@ -250,6 +259,7 @@ class FilesController {
 
   static async getFile(req, resp) {
     const fileId = req.params.id;
+    const { size } = req.query;
     const file = await getFile(fileId);
     if (!file) {
       return resp.status(404).json({ error: 'Not found' });
@@ -264,13 +274,23 @@ class FilesController {
     if (file.type === 'folder') {
       return resp.status(400).json({ error: "A folder doesn't have content" });
     }
-    if (!fs.existsSync(file.localPath)) {
+    let filePath = file.localPath;
+
+    if (size && [500, 250, 100].includes(Number(size))) {
+      const thumbnailPath = `${filePath}_${size}`;
+      if (fs.existsSync(thumbnailPath)) {
+        filePath = thumbnailPath;
+      } else {
+        return resp.status(404).json({ error: 'Thumbnail not found' });
+      }
+    }
+    if (!fs.existsSync(filePath)) {
       return resp.status(404).json({ error: 'Not found' });
     }
     const mimeType = mime.lookup(file.name);
     resp.setHeader('Content-Type', mimeType);
     const data = fs.readFileSync(file.localPath);
-    return resp.status(200).json(data);
+    return resp.status(200).send(data);
   }
 }
 
