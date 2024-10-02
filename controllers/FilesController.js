@@ -86,12 +86,12 @@ class FilesController {
         parentId,
       });
       return resp.status(201).json({
-        id: newFolder.ops[0]._id,
-        userId: newFolder.ops[0].userId,
-        name: newFolder.ops[0].name,
-        type: newFolder.ops[0].type,
-        isPublic: newFolder.ops[0].isPublic,
-        parentId: newFolder.ops[0].parentId,
+        id: newFolder.insertedId,
+        userId: user._id,
+        name,
+        type,
+        isPublic,
+        parentId,
       });
     }
     let PATH = process.env.FOLDER_PATH;
@@ -114,12 +114,12 @@ class FilesController {
       localPath,
     });
     return resp.status(201).json({
-      id: newFile.ops[0]._id,
-      userId: newFile.ops[0].userId,
-      name: newFile.ops[0].name,
-      type: newFile.ops[0].type,
-      isPublic: newFile.ops[0].isPublic,
-      parentId: newFile.ops[0].parentId,
+      id: newFile.insertedId,
+      userId: user._id,
+      name,
+      type,
+      isPublic,
+      parentId,
     });
   }
 
@@ -137,12 +137,12 @@ class FilesController {
       return resp.status(404).json({ error: 'Not found' });
     }
     return resp.status(201).json({
-      id: file.ops[0]._id,
-      userId: file.ops[0].userId,
-      name: file.ops[0].name,
-      type: file.ops[0].type,
-      isPublic: file.ops[0].isPublic,
-      parentId: file.ops[0].parentId,
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
     });
   }
 
@@ -153,28 +153,43 @@ class FilesController {
       return resp.status(401).json({ error: 'Unauthorized' });
     }
     const parentId = req.query.parentId || 0;
-    const page = req.query.page || 0;
+    const page = Number(req.query.page) || 0;
     const size = 20;
     const skip = page * size;
-
-    const allFiles = await DBClient.fileCollection
-      .find({
-        userId: new ObjectId(user._id),
-        parentId: new ObjectId(parentId),
-      })
-      .skip(skip)
-      .limit(size)
-      .toArray();
-    console.log(allFiles);
+    const query = { userId: user._id };
+    if (parentId !== 0 && parentId !== '0') {
+      query.parentId = new ObjectId(parentId);
+    }
     const fileArray = [];
+    const pipeline = [
+      {
+        $match: query,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: size,
+      },
+      {
+        $project: {
+          id: 1,
+          name: 1,
+          type: 1,
+          isPublic: 1,
+          parentId: 1,
+        },
+      },
+    ];
+    const allFiles = await DBClient.fileCollection.aggregate(pipeline).toArray();
     for (const file of allFiles) {
       fileArray.push({
-        id: file.ops[0]._id,
-        userId: file.ops[0].userId,
-        name: file.ops[0].name,
-        type: file.ops[0].type,
-        isPublic: file.ops[0].isPublic,
-        parentId: file.ops[0].parentId,
+        id: file._id,
+        userId: file.userId,
+        name: file.name,
+        type: file.type,
+        isPublic: file.isPublic,
+        parentId: file.parentId,
       });
     }
     return resp.status(200).json(fileArray);
